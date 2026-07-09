@@ -114,6 +114,8 @@ stages:
 - ${{ if or(eq(parameters.enable_win_x64_cuda, true), eq(parameters.enable_win_arm64_cuda, true), eq(parameters.enable_linux_x64_cuda, true)) }}:
   - stage: core_cuda
     displayName: 'Core · CUDA'
+    # Independent of Core · CPU — override ADO's implicit "depend on previous stage".
+    dependsOn: []
     jobs:
 
     - ${{ if eq(parameters.enable_win_x64_cuda, true) }}:
