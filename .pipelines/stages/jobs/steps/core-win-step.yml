@@ -125,6 +125,43 @@ steps:
   condition: and(eq('${{ parameters.ep }}', 'cuda'), eq('${{ parameters.arch }}', 'x64'))
   workingDirectory: '$(Build.SourcesDirectory)'
 
+# On the win-arm64 agent, Azure CLI (az) and azcopy are not pre-installed, but the
+# AzureCLI@2 task (used to auth the CUDA SDK download) requires `az`. Install both
+# first — mirrors the in-tree capi-win-step.
+- powershell: |
+    Write-Host "Downloading Azure CLI..."
+    $azCliUrl = "https://aka.ms/installazurecliwindows"
+    $installerPath = "$(Agent.TempDirectory)\AzureCLI.msi"
+    Invoke-WebRequest -Uri $azCliUrl -OutFile $installerPath
+    Write-Host "Installing Azure CLI..."
+    Start-Process -FilePath "msiexec.exe" -ArgumentList "/i", $installerPath, "/quiet", "/norestart" -Wait
+    $azCliBin = "C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin"
+    if (!(Test-Path $azCliBin)) {
+      Write-Error "Azure CLI install failed or path not found: $azCliBin"
+      exit 1
+    }
+    $env:PATH = "$azCliBin;$env:PATH"
+
+    Write-Host "Downloading AzCopy..."
+    $azcopyUrl = "https://aka.ms/downloadazcopy-v10-windows"
+    $azcopyZip = "$(Agent.TempDirectory)\azcopy.zip"
+    Invoke-WebRequest -Uri $azcopyUrl -OutFile $azcopyZip
+    $azcopyExtractPath = "$(Agent.TempDirectory)\azcopy"
+    Expand-Archive -Path $azcopyZip -DestinationPath $azcopyExtractPath -Force
+    $azcopyFullPath = Get-ChildItem -Path $azcopyExtractPath -Filter "azcopy.exe" -Recurse | Select-Object -First 1
+    if (-not $azcopyFullPath) {
+      Write-Error "AzCopy executable not found after extraction"
+      exit 1
+    }
+    $azcopyDir = $azcopyFullPath.Directory.FullName
+    $env:PATH = "$azcopyDir;$env:PATH"
+    Write-Host "##vso[task.setvariable variable=PATH]$env:PATH"
+    az --version
+    azcopy --version
+  displayName: 'Install Azure CLI + AzCopy (arm64 CUDA)'
+  condition: and(eq('${{ parameters.ep }}', 'cuda'), eq('${{ parameters.arch }}', 'arm64'))
+  workingDirectory: '$(Build.SourcesDirectory)'
+
 - task: AzureCLI@2
   displayName: 'Download CUDA ${{ parameters.cuda_version }} SDK (arm64)'
   condition: and(eq('${{ parameters.ep }}', 'cuda'), eq('${{ parameters.arch }}', 'arm64'))
