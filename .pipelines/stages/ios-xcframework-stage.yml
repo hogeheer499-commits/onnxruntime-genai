@@ -12,12 +12,12 @@ parameters:
 - name: build_config
   type: string
   default: Release
-- name: enable_ios
+- name: enable_cpu
   type: boolean
-  default: false
+  default: true
 
 stages:
-- ${{ if eq(parameters.enable_ios, true) }}:
+- ${{ if eq(parameters.enable_cpu, true) }}:
   - stage: core_apple
     displayName: 'Core · Apple (iOS xcframework)'
     dependsOn: []

@@ -13,12 +13,12 @@ parameters:
   default: Release
 - name: ort_version
   type: string
-- name: enable_android
+- name: enable_cpu
   type: boolean
-  default: false
+  default: true
 
 stages:
-- ${{ if eq(parameters.enable_android, true) }}:
+- ${{ if eq(parameters.enable_cpu, true) }}:
   - stage: sdk_android
     displayName: 'SDK · Android (AAR)'
     dependsOn: []

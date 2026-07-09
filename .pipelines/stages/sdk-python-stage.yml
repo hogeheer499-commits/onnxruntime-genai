@@ -1,14 +1,16 @@
 # =============================================================================
 # sdk-python-stage.yml — Python SDK (wheel) stage (Phase 3).
 #
-# Builds one wheel per enabled cell, incrementally against the prebuilt core.
-# The stage depends on the core stage(s) so the core CMake-package artifacts are
-# available to download; each job consumes the artifact for its own cell.
+# Builds one wheel per platform of each enabled EP, incrementally against the
+# prebuilt core. Fixed platform matrix per EP:
+#   CPU  — win-x64, win-arm64, linux-x64, linux-arm64
+#   CUDA — win-x64, win-arm64, linux-x64
+# (No macOS wheel yet — follow-up.)
 #
 # NOTE on granularity: ADO job dependencies are within a stage, so this SDK stage
-# depends on the whole Core stage (not per-core-job). This keeps the clean
-# Core·/SDK· stage separation at the cost of the SDK stage waiting for all core
-# jobs of that EP to finish. Acceptable for the packaging cadence.
+# depends on the whole Core stage(s) it consumes (not per-core-job). This keeps
+# the clean Core·/SDK· separation at the cost of waiting for all core jobs of the
+# enabled EP(s) to finish. Acceptable for the packaging cadence.
 #
 # Display-name convention:
 #   Stage:  SDK · Python
@@ -16,116 +18,79 @@
 # =============================================================================
 
 parameters:
-- name: ort_version
+- name: ort_version_cpu
+  type: string
+- name: ort_version_cuda
   type: string
 - name: cuda_version
   type: string
   default: '13.1'
-- name: ort_cuda_version
-  type: string
-  default: ''
 
-# ---- CPU cell enable toggles -----------------------------------------------
-- name: enable_win_x64_cpu
+- name: enable_cpu
   type: boolean
-  default: false
-- name: enable_win_arm64_cpu
+  default: true
+- name: enable_cuda
   type: boolean
-  default: false
-- name: enable_linux_x64_cpu
-  type: boolean
-  default: false
-- name: enable_linux_arm64_cpu
-  type: boolean
-  default: false
-
-# ---- CUDA cell enable toggles ----------------------------------------------
-- name: enable_win_x64_cuda
-  type: boolean
-  default: false
-- name: enable_win_arm64_cuda
-  type: boolean
-  default: false
-- name: enable_linux_x64_cuda
-  type: boolean
-  default: false
+  default: true
 
 stages:
 - stage: sdk_python
   displayName: 'SDK · Python'
-  # Depend only on the core stage(s) this stage actually consumes, so CPU and
-  # CUDA can build/publish independently (e.g. a CUDA-only run has no core_cpu).
+  # Depend only on the core stage(s) this stage actually consumes.
   dependsOn:
-  - ${{ if or(eq(parameters.enable_win_x64_cpu, true), eq(parameters.enable_win_arm64_cpu, true), eq(parameters.enable_linux_x64_cpu, true), eq(parameters.enable_linux_arm64_cpu, true)) }}:
+  - ${{ if eq(parameters.enable_cpu, true) }}:
     - core_cpu
-  - ${{ if or(eq(parameters.enable_win_x64_cuda, true), eq(parameters.enable_win_arm64_cuda, true), eq(parameters.enable_linux_x64_cuda, true)) }}:
+  - ${{ if eq(parameters.enable_cuda, true) }}:
     - core_cuda
   jobs:
 
-  - ${{ if eq(parameters.enable_win_x64_cpu, true) }}:
+  # ---- CPU wheels ----------------------------------------------------------
+  - ${{ if eq(parameters.enable_cpu, true) }}:
     - template: jobs/sdk-python-job.yml
       parameters:
         os: win
         arch: x64
         ep: cpu
-        ort_version: ${{ parameters.ort_version }}
-
-  - ${{ if eq(parameters.enable_win_arm64_cpu, true) }}:
+        ort_version: ${{ parameters.ort_version_cpu }}
     - template: jobs/sdk-python-job.yml
       parameters:
         os: win
         arch: arm64
         ep: cpu
-        ort_version: ${{ parameters.ort_version }}
-
-  - ${{ if eq(parameters.enable_linux_x64_cpu, true) }}:
+        ort_version: ${{ parameters.ort_version_cpu }}
     - template: jobs/sdk-python-job.yml
       parameters:
         os: linux
         arch: x64
         ep: cpu
-        ort_version: ${{ parameters.ort_version }}
-
-  - ${{ if eq(parameters.enable_linux_arm64_cpu, true) }}:
+        ort_version: ${{ parameters.ort_version_cpu }}
     - template: jobs/sdk-python-job.yml
       parameters:
         os: linux
         arch: arm64
         ep: cpu
-        ort_version: ${{ parameters.ort_version }}
+        ort_version: ${{ parameters.ort_version_cpu }}
 
-  - ${{ if eq(parameters.enable_win_x64_cuda, true) }}:
+  # ---- CUDA wheels ---------------------------------------------------------
+  - ${{ if eq(parameters.enable_cuda, true) }}:
     - template: jobs/sdk-python-job.yml
       parameters:
         os: win
         arch: x64
         ep: cuda
         cuda_version: ${{ parameters.cuda_version }}
-        ${{ if ne(parameters.ort_cuda_version, '') }}:
-          ort_version: ${{ parameters.ort_cuda_version }}
-        ${{ else }}:
-          ort_version: ${{ parameters.ort_version }}
-
-  - ${{ if eq(parameters.enable_win_arm64_cuda, true) }}:
+        ort_version: ${{ parameters.ort_version_cuda }}
     - template: jobs/sdk-python-job.yml
       parameters:
         os: win
         arch: arm64
         ep: cuda
         cuda_version: ${{ parameters.cuda_version }}
-        ${{ if ne(parameters.ort_cuda_version, '') }}:
-          ort_version: ${{ parameters.ort_cuda_version }}
-        ${{ else }}:
-          ort_version: ${{ parameters.ort_version }}
-
-  - ${{ if eq(parameters.enable_linux_x64_cuda, true) }}:
+        ort_version: ${{ parameters.ort_version_cuda }}
     - template: jobs/sdk-python-job.yml
       parameters:
         os: linux
         arch: x64
         ep: cuda
         cuda_version: ${{ parameters.cuda_version }}
-        ${{ if ne(parameters.ort_cuda_version, '') }}:
-          ort_version: ${{ parameters.ort_cuda_version }}
-        ${{ else }}:
-          ort_version: ${{ parameters.ort_version }}
+        ort_version: ${{ parameters.ort_version_cuda }}
