@@ -20,7 +20,7 @@ steps:
 
 - script: |
     set -e
-    python3 -m pip install requests
+    python3 -m pip install --user --break-system-packages requests
     python3 tools/ci_build/github/apple/build_apple_framework.py \
           --build_dir "$(Build.BinariesDirectory)/apple_framework" \
           --config $(cmake_build_type) \
