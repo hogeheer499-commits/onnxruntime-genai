@@ -1,35 +1,100 @@
 # =============================================================================
-# TEMPORARY: Packaging pipeline scratch entry point (Phase 1 pipeline check).
+# nuget-publishing.yml — Unified ONNX Runtime GenAI packaging pipeline (Phase 5).
 #
-# This file normally hosts the nuget-publishing pipeline. It has been
-# repurposed to drive the packaging redesign's scratch validation pipeline so
-# the reusable core-packaging-stage templates can be exercised on real 1ES pool
-# agents without registering a new pipeline. The original nuget-publishing
-# content is preserved in git history and will be superseded by the unified
-# packaging pipeline in Phase 5.
+# NOTE: this file is temporarily named `nuget-publishing.yml` so it can reuse the
+# already-registered pipeline (id 1385) for validation. It should be renamed back
+# to `packaging.yml` (and a fresh pipeline registered) before merge. See the
+# "Rename nuget-publishing.yml back to packaging.yml" todo.
 #
-# Phase 1 reduced matrix: win-x64 CPU + linux-x64 CPU.
-# Validation: core build + CPack archive + CMake package installed correctly.
-# See .pipelines/stages/packaging-scratch-stage.yml.
+# Single entry point that builds the core once per (EP, os, arch) and layers the
+# SDKs (Python, C#, Java) incrementally against the prebuilt core, plus the
+# bespoke Apple (iOS xcframework) and Android (AAR) artifacts and the optional
+# .Foundry custom-ORT NuGet. Feed-isolated to the internal Lotus feed; every
+# published binary/package is ESRP-signed where the platform supports it.
+#
+# Matrix (goal 8):
+#   CPU : win-x64, win-arm64, macos-arm64, linux-x64, linux-arm64, android, ios
+#   CUDA: win-x64, win-arm64, linux-x64
+#
+# Stage graph:
+#   Core CPU / Core CUDA / Core Apple (ios) / SDK Android  run first;
+#   SDK Python / C# / Java and .Foundry build against the prebuilt core.
 # =============================================================================
+
 parameters:
-  - name: ort_version
-    displayName: 'ORT version (downloaded from the Lotus feed)'
-    type: string
-    default: '1.26.0'
+# ---- Versions --------------------------------------------------------------
+- name: ort_version
+  displayName: 'ORT version (CPU, from Lotus feed)'
+  type: string
+  default: '1.26.0'
+- name: ort_cuda_version
+  displayName: 'ORT version (CUDA; blank = same as CPU)'
+  type: string
+  default: ''
+- name: cuda_version
+  displayName: 'CUDA version'
+  type: string
+  default: '13.1'
+  values:
+    - '13.1'
+    - '12.8'
+- name: nuget_version_type
+  displayName: 'NuGet version type'
+  type: string
+  default: 'stable'
+  values:
+    - 'stable'
+    - 'dev'
 
-  - name: cuda_version
-    displayName: 'CUDA version'
-    type: string
-    default: '13.1'
-    values:
-      - '13.1'
-      - '12.8'
+# ---- CPU cells -------------------------------------------------------------
+- name: enable_win_x64_cpu
+  displayName: 'Build: Windows x64 (CPU)'
+  type: boolean
+  default: true
+- name: enable_win_arm64_cpu
+  displayName: 'Build: Windows ARM64 (CPU)'
+  type: boolean
+  default: true
+- name: enable_macos_arm64_cpu
+  displayName: 'Build: macOS ARM64 (CPU)'
+  type: boolean
+  default: true
+- name: enable_linux_x64_cpu
+  displayName: 'Build: Linux x64 (CPU)'
+  type: boolean
+  default: true
+- name: enable_linux_arm64_cpu
+  displayName: 'Build: Linux ARM64 (CPU)'
+  type: boolean
+  default: true
+- name: enable_android
+  displayName: 'Build: Android AAR (CPU)'
+  type: boolean
+  default: true
+- name: enable_ios
+  displayName: 'Build: iOS xcframework (CPU)'
+  type: boolean
+  default: true
 
-  - name: custom_ort_package_versioned_name
-    displayName: '.Foundry: custom ORT package (e.g. Microsoft.ML.OnnxRuntime.Foundry.1.26.0.nupkg; empty = skip)'
-    type: string
-    default: ''
+# ---- CUDA cells ------------------------------------------------------------
+- name: enable_win_x64_cuda
+  displayName: 'Build: Windows x64 (CUDA)'
+  type: boolean
+  default: true
+- name: enable_win_arm64_cuda
+  displayName: 'Build: Windows ARM64 (CUDA)'
+  type: boolean
+  default: true
+- name: enable_linux_x64_cuda
+  displayName: 'Build: Linux x64 (CUDA)'
+  type: boolean
+  default: true
+
+# ---- .Foundry (opt-in) -----------------------------------------------------
+- name: custom_ort_package_versioned_name
+  displayName: '.Foundry: custom ORT package (e.g. Microsoft.ML.OnnxRuntime.Foundry.1.26.0.nupkg; empty = skip)'
+  type: string
+  default: ''
 
 resources:
   repositories:
@@ -44,9 +109,6 @@ variables:
 - template: lotus-feed-variables.yml
 
 extends:
-  # Registered production pipeline (id 1385): the aiinfra org's 1ES drift
-  # management requires extending the *Official* template. The Unofficial
-  # template is rejected for this pipeline id.
   template: v1/1ES.Official.PipelineTemplate.yml@1esPipelines
   parameters:
     pool:
@@ -61,8 +123,78 @@ extends:
         enabled: true
         configFile: '$(Build.SourcesDirectory)\.config\tsaoptions.json'
     stages:
-      - template: stages/packaging-scratch-stage.yml
-        parameters:
-          ort_version: ${{ parameters.ort_version }}
-          cuda_version: ${{ parameters.cuda_version }}
-          custom_ort_package_versioned_name: ${{ parameters.custom_ort_package_versioned_name }}
+    # ---- Core (native) -----------------------------------------------------
+    - template: stages/core-packaging-stage.yml
+      parameters:
+        ort_version: ${{ parameters.ort_version }}
+        ort_cuda_version: ${{ parameters.ort_cuda_version }}
+        cuda_version: ${{ parameters.cuda_version }}
+        enable_win_x64_cpu: ${{ parameters.enable_win_x64_cpu }}
+        enable_win_arm64_cpu: ${{ parameters.enable_win_arm64_cpu }}
+        enable_macos_arm64_cpu: ${{ parameters.enable_macos_arm64_cpu }}
+        enable_linux_x64_cpu: ${{ parameters.enable_linux_x64_cpu }}
+        enable_linux_arm64_cpu: ${{ parameters.enable_linux_arm64_cpu }}
+        enable_win_x64_cuda: ${{ parameters.enable_win_x64_cuda }}
+        enable_win_arm64_cuda: ${{ parameters.enable_win_arm64_cuda }}
+        enable_linux_x64_cuda: ${{ parameters.enable_linux_x64_cuda }}
+
+    # ---- iOS xcframework (bespoke Apple build) -----------------------------
+    - template: stages/ios-xcframework-stage.yml
+      parameters:
+        enable_ios: ${{ parameters.enable_ios }}
+
+    # ---- Android AAR (bespoke Android build) -------------------------------
+    - template: stages/android-aar-stage.yml
+      parameters:
+        ort_version: ${{ parameters.ort_version }}
+        enable_android: ${{ parameters.enable_android }}
+
+    # ---- SDK · Python ------------------------------------------------------
+    - template: stages/sdk-python-stage.yml
+      parameters:
+        ort_version: ${{ parameters.ort_version }}
+        ort_cuda_version: ${{ parameters.ort_cuda_version }}
+        cuda_version: ${{ parameters.cuda_version }}
+        enable_win_x64_cpu: ${{ parameters.enable_win_x64_cpu }}
+        enable_win_arm64_cpu: ${{ parameters.enable_win_arm64_cpu }}
+        enable_linux_x64_cpu: ${{ parameters.enable_linux_x64_cpu }}
+        enable_linux_arm64_cpu: ${{ parameters.enable_linux_arm64_cpu }}
+        enable_win_x64_cuda: ${{ parameters.enable_win_x64_cuda }}
+        enable_win_arm64_cuda: ${{ parameters.enable_win_arm64_cuda }}
+        enable_linux_x64_cuda: ${{ parameters.enable_linux_x64_cuda }}
+
+    # ---- SDK · C# (NuGet) --------------------------------------------------
+    - template: stages/sdk-csharp-stage.yml
+      parameters:
+        ort_version: ${{ parameters.ort_version }}
+        ort_cuda_version: ${{ parameters.ort_cuda_version }}
+        nuget_version_type: ${{ parameters.nuget_version_type }}
+        enable_win_x64_cpu: ${{ parameters.enable_win_x64_cpu }}
+        enable_win_arm64_cpu: ${{ parameters.enable_win_arm64_cpu }}
+        enable_linux_x64_cpu: ${{ parameters.enable_linux_x64_cpu }}
+        enable_linux_arm64_cpu: ${{ parameters.enable_linux_arm64_cpu }}
+        enable_win_x64_cuda: ${{ parameters.enable_win_x64_cuda }}
+        enable_win_arm64_cuda: ${{ parameters.enable_win_arm64_cuda }}
+        enable_linux_x64_cuda: ${{ parameters.enable_linux_x64_cuda }}
+
+    # ---- SDK · Java (desktop jar) ------------------------------------------
+    - template: stages/sdk-java-stage.yml
+      parameters:
+        ort_version: ${{ parameters.ort_version }}
+        enable_linux_x64_cpu: ${{ parameters.enable_linux_x64_cpu }}
+        enable_linux_arm64_cpu: ${{ parameters.enable_linux_arm64_cpu }}
+
+    # ---- SDK · .Foundry (opt-in custom ORT NuGet) --------------------------
+    - template: stages/foundry-packaging-stage.yml
+      parameters:
+        custom_ort_package_versioned_name: ${{ parameters.custom_ort_package_versioned_name }}
+        nuget_version_type: ${{ parameters.nuget_version_type }}
+        enable_win_x64: ${{ parameters.enable_win_x64_cuda }}
+        win_x64_ep: 'cuda'
+        enable_win_arm64: ${{ parameters.enable_win_arm64_cuda }}
+        win_arm64_ep: 'cuda'
+        enable_osx_arm64: ${{ parameters.enable_macos_arm64_cpu }}
+        enable_linux_x64: ${{ parameters.enable_linux_x64_cuda }}
+        linux_x64_ep: 'cuda'
+        enable_linux_arm64: ${{ parameters.enable_linux_arm64_cpu }}
+        linux_arm64_ep: 'cpu'
