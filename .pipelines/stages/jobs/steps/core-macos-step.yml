@@ -113,7 +113,7 @@ steps:
       --skip_wheel \
       --use_guidance \
       --ort_home "$(Build.SourcesDirectory)/ort_home" \
-      --cmake_extra_defines ENABLE_PYTHON=OFF ENABLE_TESTS=OFF CMAKE_OSX_ARCHITECTURES=arm64 \
+      --cmake_extra_defines ENABLE_PYTHON=OFF ENABLE_TESTS=OFF CMAKE_OSX_ARCHITECTURES=arm64 Rust_CARGO_TARGET=aarch64-apple-darwin \
       --build_dir "$(buildDir)"
   displayName: 'Build core (build.py)'
   workingDirectory: '$(Build.SourcesDirectory)'
