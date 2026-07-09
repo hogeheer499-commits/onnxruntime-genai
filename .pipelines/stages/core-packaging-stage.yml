@@ -62,51 +62,54 @@ parameters:
 stages:
 
 # ---------------------------------------------------------------------------
-# Core · CPU
+# Core · CPU  (only included when at least one CPU cell is enabled)
 # ---------------------------------------------------------------------------
-- stage: core_cpu
-  displayName: 'Core · CPU'
-  jobs:
+- ${{ if or(eq(parameters.enable_win_x64_cpu, true), eq(parameters.enable_win_arm64_cpu, true), eq(parameters.enable_linux_x64_cpu, true), eq(parameters.enable_linux_arm64_cpu, true), eq(parameters.enable_macos_arm64_cpu, true)) }}:
+  - stage: core_cpu
+    displayName: 'Core · CPU'
+    # Independent of Core · CUDA — override ADO's implicit "depend on previous stage".
+    dependsOn: []
+    jobs:
 
-  - ${{ if eq(parameters.enable_win_x64_cpu, true) }}:
-    - template: jobs/core-build-job.yml
-      parameters:
-        os: win
-        arch: x64
-        ep: cpu
-        ort_version: ${{ parameters.ort_version }}
+    - ${{ if eq(parameters.enable_win_x64_cpu, true) }}:
+      - template: jobs/core-build-job.yml
+        parameters:
+          os: win
+          arch: x64
+          ep: cpu
+          ort_version: ${{ parameters.ort_version }}
 
-  - ${{ if eq(parameters.enable_win_arm64_cpu, true) }}:
-    - template: jobs/core-build-job.yml
-      parameters:
-        os: win
-        arch: arm64
-        ep: cpu
-        ort_version: ${{ parameters.ort_version }}
+    - ${{ if eq(parameters.enable_win_arm64_cpu, true) }}:
+      - template: jobs/core-build-job.yml
+        parameters:
+          os: win
+          arch: arm64
+          ep: cpu
+          ort_version: ${{ parameters.ort_version }}
 
-  - ${{ if eq(parameters.enable_linux_x64_cpu, true) }}:
-    - template: jobs/core-build-job.yml
-      parameters:
-        os: linux
-        arch: x64
-        ep: cpu
-        ort_version: ${{ parameters.ort_version }}
+    - ${{ if eq(parameters.enable_linux_x64_cpu, true) }}:
+      - template: jobs/core-build-job.yml
+        parameters:
+          os: linux
+          arch: x64
+          ep: cpu
+          ort_version: ${{ parameters.ort_version }}
 
-  - ${{ if eq(parameters.enable_linux_arm64_cpu, true) }}:
-    - template: jobs/core-build-job.yml
-      parameters:
-        os: linux
-        arch: arm64
-        ep: cpu
-        ort_version: ${{ parameters.ort_version }}
+    - ${{ if eq(parameters.enable_linux_arm64_cpu, true) }}:
+      - template: jobs/core-build-job.yml
+        parameters:
+          os: linux
+          arch: arm64
+          ep: cpu
+          ort_version: ${{ parameters.ort_version }}
 
-  - ${{ if eq(parameters.enable_macos_arm64_cpu, true) }}:
-    - template: jobs/core-build-job.yml
-      parameters:
-        os: osx
-        arch: arm64
-        ep: cpu
-        ort_version: ${{ parameters.ort_version }}
+    - ${{ if eq(parameters.enable_macos_arm64_cpu, true) }}:
+      - template: jobs/core-build-job.yml
+        parameters:
+          os: osx
+          arch: arm64
+          ep: cpu
+          ort_version: ${{ parameters.ort_version }}
 
 # ---------------------------------------------------------------------------
 # Core · CUDA  (only included when at least one CUDA cell is enabled)

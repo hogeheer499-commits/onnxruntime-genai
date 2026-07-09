@@ -53,14 +53,13 @@ parameters:
 stages:
 - stage: sdk_python
   displayName: 'SDK · Python'
-  # Depend on the core stage(s) so their cmake-pkg artifacts are published first.
-  ${{ if or(eq(parameters.enable_win_x64_cuda, true), eq(parameters.enable_win_arm64_cuda, true), eq(parameters.enable_linux_x64_cuda, true)) }}:
-    dependsOn:
+  # Depend only on the core stage(s) this stage actually consumes, so CPU and
+  # CUDA can build/publish independently (e.g. a CUDA-only run has no core_cpu).
+  dependsOn:
+  - ${{ if or(eq(parameters.enable_win_x64_cpu, true), eq(parameters.enable_win_arm64_cpu, true), eq(parameters.enable_linux_x64_cpu, true), eq(parameters.enable_linux_arm64_cpu, true)) }}:
     - core_cpu
+  - ${{ if or(eq(parameters.enable_win_x64_cuda, true), eq(parameters.enable_win_arm64_cuda, true), eq(parameters.enable_linux_x64_cuda, true)) }}:
     - core_cuda
-  ${{ else }}:
-    dependsOn:
-    - core_cpu
   jobs:
 
   - ${{ if eq(parameters.enable_win_x64_cpu, true) }}:
