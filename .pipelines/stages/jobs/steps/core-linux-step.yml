@@ -187,7 +187,7 @@ steps:
       else
         cuda_archs='60-real;70-real;75-real;80-real;86-real;89-real;90-real;100-real;120'
       fi
-      docker_args+=(-e "CUDA_EXTRA_ARGS=--use_cuda --cmake_extra_defines CMAKE_CUDA_ARCHITECTURES=${cuda_archs}")
+      docker_args+=(-e "CUDA_EXTRA_ARGS=--use_cuda --cuda_home /usr/local/cuda --cmake_extra_defines CMAKE_CUDA_ARCHITECTURES=${cuda_archs}")
     fi
     docker run "${docker_args[@]}" "$docker_image" bash -c '
       set -e -x
