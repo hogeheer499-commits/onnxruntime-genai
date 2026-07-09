@@ -56,7 +56,7 @@ steps:
     artifactFeeds: '$(lotusFeedName)'
     onlyAddExtraIndex: false
 
-- script: python3 -m pip install requests wheel
+- script: python3 -m pip install --user --break-system-packages requests wheel
   displayName: 'Install build-time Python deps'
 
 - bash: |
