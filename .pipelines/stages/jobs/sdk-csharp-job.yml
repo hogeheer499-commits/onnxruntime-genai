@@ -227,6 +227,17 @@ jobs:
     displayName: 'Extract artifacts & assert native RIDs'
     workingDirectory: '$(Build.BinariesDirectory)/artifact-downloads'
 
+  # --- BinSkim the core native binaries in this clean workspace --------------
+  # BinSkim can't run in the core-win build job (its --use_guidance cargo tree
+  # crashes the injected Guardian scanner). This combine job reconstructs the
+  # native layout at build/<ep>/<rid>/<config>/ — matching the paths already in
+  # .config/guardian/.gdnbaselines — so BinSkim findings here are baselined.
+  - task: BinSkim@4
+    displayName: 'Run BinSkim (core native binaries)'
+    inputs:
+      AnalyzeTargetGlob: '$(Build.Repository.LocalPath)\$(buildDir)\**\*genai*.dll;$(Build.Repository.LocalPath)\$(buildDir)\**\*genai*.so'
+    continueOnError: true
+
   - task: UsePythonVersion@0
     inputs:
       versionSpec: 3.11

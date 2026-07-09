@@ -241,14 +241,15 @@ steps:
     # credential provider). Not echoed — ADO masks System.AccessToken.
     CARGO_REGISTRIES_LOTUS_TOKEN: 'Bearer $(System.AccessToken)'
 
-# --- BinSkim on the core native binaries ------------------------------------
-- task: BinSkim@4
-  displayName: 'Run BinSkim (core dll)'
-  inputs:
-    AnalyzeTargetGlob: '$(Build.SourcesDirectory)\$(buildDir)\${{ parameters.build_config }}\**\*genai*.dll'
-  continueOnError: true
-
 # --- ESRP sign the core native dlls (before packaging) ----------------------
+# NOTE: BinSkim is intentionally NOT run here. Adding a BinSkim@4 task to this
+# job activates 1ES's Guardian glass-box SDL analysis, whose injected credential
+# scanner ("sarifpatternmatcher") crashes Guardian Post Analysis with a
+# driver-less SARIF when scanning this job's --use_guidance Rust/cargo build tree
+# (confirmed by bisect: removing BinSkim here makes the job green; ESRP is fine).
+# BinSkim coverage for the core native binaries is instead run in a clean-workspace
+# job (see sdk-csharp-job.yml, which BinSkims the downloaded core dlls).
+#
 # build.py's VS build nests the dll under <build_dir>/<config>/<config>/; the ESRP
 # template searches FolderPath recursively so the config sub-dir is covered.
 - template: compliant/win-esrp-dll-step.yml
