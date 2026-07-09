@@ -13,7 +13,7 @@
 parameters:
 - name: os
   type: string
-  values: [win, linux]
+  values: [win, linux, osx]
 - name: arch
   type: string
   values: [x64, arm64]
@@ -52,6 +52,12 @@ jobs:
       ${{ else }}:
         name: 'onnxruntime-Win-CPU-2022'
       os: windows
+
+  ${{ if eq(parameters.os, 'osx') }}:
+    pool:
+      name: 'Azure Pipelines'
+      image: 'macOS-latest'
+      os: macOS
 
   timeoutInMinutes: 180
   workspace:
@@ -107,5 +113,13 @@ jobs:
         build_config: ${{ parameters.build_config }}
         ort_version: ${{ parameters.ort_version }}
         cuda_version: ${{ parameters.cuda_version }}
+
+  - ${{ if eq(parameters.os, 'osx') }}:
+    - template: steps/core-macos-step.yml
+      parameters:
+        arch: ${{ parameters.arch }}
+        ep: ${{ parameters.ep }}
+        build_config: ${{ parameters.build_config }}
+        ort_version: ${{ parameters.ort_version }}
 
   - template: steps/compliant-and-cleanup-step.yml

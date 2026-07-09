@@ -44,6 +44,9 @@ parameters:
 - name: enable_linux_arm64_cpu
   type: boolean
   default: false
+- name: enable_macos_arm64_cpu
+  type: boolean
+  default: false
 
 # ---- CUDA cell enable toggles ----------------------------------------------
 - name: enable_win_x64_cuda
@@ -93,6 +96,14 @@ stages:
     - template: jobs/core-build-job.yml
       parameters:
         os: linux
+        arch: arm64
+        ep: cpu
+        ort_version: ${{ parameters.ort_version }}
+
+  - ${{ if eq(parameters.enable_macos_arm64_cpu, true) }}:
+    - template: jobs/core-build-job.yml
+      parameters:
+        os: osx
         arch: arm64
         ep: cpu
         ort_version: ${{ parameters.ort_version }}
