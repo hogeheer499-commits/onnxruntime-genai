@@ -70,7 +70,7 @@ steps:
     Write-Host "Downloading $pkgName ${{ parameters.ort_version }} from Lotus"
     $zip = "$(Agent.TempDirectory)\ort.zip"
     Invoke-WebRequest -Uri $url -OutFile $zip -ErrorAction Stop `
-      -Headers @{ Authorization = "******" }
+      -Headers @{ Authorization = "Bearer $env:SYSTEM_ACCESSTOKEN" }
     Expand-Archive -Path $zip -DestinationPath "$(Agent.TempDirectory)\ort_extracted" -Force
     New-Item -ItemType Directory -Force -Path "$(ortHome)\include","$(ortHome)\lib" | Out-Null
     $platform = 'win-${{ parameters.arch }}'

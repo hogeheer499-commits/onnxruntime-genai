@@ -67,7 +67,7 @@ steps:
     mkdir -p ort_home/include ort_home/lib
     # No `set -x` — do not echo the token.
     curl --fail --retry 5 --retry-all-errors -L \
-      -H "Authorization: ******" \
+      -H "Authorization: Bearer ${SYSTEM_ACCESSTOKEN}" \
       -o ort.zip "$url"
     unzip -o ort.zip -d ort_extracted >/dev/null
     cp -r ort_extracted/build/native/include/* ort_home/include/
