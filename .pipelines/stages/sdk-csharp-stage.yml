@@ -52,7 +52,6 @@ stages:
         ep: cpu
         ort_version: ${{ parameters.ort_version_cpu }}
         build_config: ${{ parameters.build_config }}
-        genai_version: $(genai_version)
         enable_win_x64: true
         enable_win_arm64: true
         enable_linux_x64: true
@@ -65,7 +64,6 @@ stages:
         ep: cuda
         ort_version: ${{ parameters.ort_version_cuda }}
         build_config: ${{ parameters.build_config }}
-        genai_version: $(genai_version)
         enable_win_x64: true
         enable_win_arm64: true
         enable_linux_x64: true
