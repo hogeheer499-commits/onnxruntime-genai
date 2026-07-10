@@ -1,14 +1,13 @@
 # =============================================================================
-# sdk-java-stage.yml — Java SDK (desktop JVM jar) stage (Phase 3).
+# sdk-java-stage.yml — Java SDK (desktop JVM jar) stage (Phase 5).
 #
-# Builds one desktop jar per Linux CPU platform, incrementally against the
-# prebuilt core. Java is CPU-only here; Windows/macOS desktop jars and the
-# Android AAR are follow-ups. Fixed platform matrix:
-#   CPU — linux-x64, linux-arm64
+# Builds a per-platform desktop jar for every CPU platform, then combines them
+# into a SINGLE multi-platform jar. Java is CPU-only. Fixed platform matrix:
+#   CPU — win-x64, win-arm64, osx-arm64, linux-x64, linux-arm64
 #
 # Display-name convention:
 #   Stage:  SDK · Java
-#   Jobs:   java · <os>-<arch> · <ep>   (set by sdk-java-job.yml)
+#   Jobs:   java · <os>-<arch> · <ep>   /   java · combine (multi-platform jar)
 # =============================================================================
 
 parameters:
@@ -26,6 +25,25 @@ stages:
     dependsOn:
     - core_cpu
     jobs:
+    # ---- Per-platform jars -------------------------------------------------
+    - template: jobs/sdk-java-job.yml
+      parameters:
+        os: win
+        arch: x64
+        ep: cpu
+        ort_version: ${{ parameters.ort_version_cpu }}
+    - template: jobs/sdk-java-job.yml
+      parameters:
+        os: win
+        arch: arm64
+        ep: cpu
+        ort_version: ${{ parameters.ort_version_cpu }}
+    - template: jobs/sdk-java-job.yml
+      parameters:
+        os: osx
+        arch: arm64
+        ep: cpu
+        ort_version: ${{ parameters.ort_version_cpu }}
     - template: jobs/sdk-java-job.yml
       parameters:
         os: linux
@@ -38,3 +56,13 @@ stages:
         arch: arm64
         ep: cpu
         ort_version: ${{ parameters.ort_version_cpu }}
+
+    # ---- Combine into a single multi-platform jar --------------------------
+    - template: jobs/sdk-java-combine-job.yml
+      parameters:
+        combine_depends_on:
+        - java_win_x64_cpu
+        - java_win_arm64_cpu
+        - java_osx_arm64_cpu
+        - java_linux_x64_cpu
+        - java_linux_arm64_cpu

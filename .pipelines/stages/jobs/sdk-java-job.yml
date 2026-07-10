@@ -1,8 +1,10 @@
 # =============================================================================
-# sdk-java-job.yml — Reusable Java SDK (desktop JVM jar) build job (Phase 3).
+# sdk-java-job.yml — Reusable Java SDK (desktop JVM jar) build job (Phase 5).
 #
-# Builds the desktop JVM jar incrementally against the prebuilt core. Currently
-# supports Linux; Windows/macOS desktop jars and the Android AAR are follow-ups.
+# Builds a per-platform desktop JVM jar incrementally against the prebuilt core.
+# Supports win/linux/macos on x64/arm64. Each job publishes a per-platform jar
+# (java-<os>-<arch>-<ep>-jar); the combine job later merges all platforms'
+# native subdirs into a single multi-platform jar.
 #
 # Consumes:  core-<os>-<arch>-<ep>-cmake-pkg
 # Publishes: java-<os>-<arch>-<ep>-jar
@@ -11,7 +13,7 @@
 parameters:
 - name: os
   type: string
-  values: [linux]
+  values: [win, linux, osx]
 - name: arch
   type: string
   values: [x64, arm64]
@@ -28,13 +30,31 @@ jobs:
 - job: java_${{ parameters.os }}_${{ parameters.arch }}_${{ parameters.ep }}
   displayName: 'java · ${{ parameters.os }}-${{ parameters.arch }} · ${{ parameters.ep }}'
 
-  pool:
-    ${{ if eq(parameters.arch, 'arm64') }}:
-      name: 'onnxruntime-linux-ARM64-CPU-2019'
-      hostArchitecture: Arm64
-    ${{ else }}:
-      name: 'onnxruntime-Ubuntu2204-AMD-CPU'
-    os: linux
+  ${{ if eq(parameters.os, 'linux') }}:
+    pool:
+      ${{ if eq(parameters.arch, 'arm64') }}:
+        name: 'onnxruntime-linux-ARM64-CPU-2019'
+        hostArchitecture: Arm64
+      ${{ else }}:
+        name: 'onnxruntime-Ubuntu2204-AMD-CPU'
+      os: linux
+
+  ${{ if eq(parameters.os, 'win') }}:
+    pool:
+      ${{ if eq(parameters.arch, 'arm64') }}:
+        name: 'onnxruntime-genai-windows-vs-2022-arm64'
+        hostArchitecture: Arm64
+        demands:
+          - Agent.Version -equals 4.264.2
+      ${{ else }}:
+        name: 'onnxruntime-Win-CPU-2022'
+      os: windows
+
+  ${{ if eq(parameters.os, 'osx') }}:
+    pool:
+      name: 'Azure Pipelines'
+      image: 'macOS-latest'
+      os: macOS
 
   timeoutInMinutes: 120
   workspace:
@@ -46,7 +66,15 @@ jobs:
   - name: coreArtifact
     value: 'core-${{ parameters.os }}-${{ parameters.arch }}-${{ parameters.ep }}-cmake-pkg'
   - name: corePkgDir
-    value: '$(Build.SourcesDirectory)/core_pkg'
+    ${{ if eq(parameters.os, 'win') }}:
+      value: '$(Build.SourcesDirectory)\core_pkg'
+    ${{ else }}:
+      value: '$(Build.SourcesDirectory)/core_pkg'
+  - name: ortHome
+    ${{ if eq(parameters.os, 'win') }}:
+      value: '$(Build.SourcesDirectory)\ort_home'
+    ${{ else }}:
+      value: '$(Build.SourcesDirectory)/ort_home'
   # build.py --build_dir for the SDK (build.py nests <sdk>/<config> beneath it)
   - name: jsdkBuildDir
     value: 'build/jsdk'
@@ -57,12 +85,31 @@ jobs:
     lfs: true
     clean: true
 
-  - template: steps/sdk-java-linux-step.yml
-    parameters:
-      arch: ${{ parameters.arch }}
-      ep: ${{ parameters.ep }}
-      build_config: ${{ parameters.build_config }}
-      ort_version: ${{ parameters.ort_version }}
-      core_artifact: $(coreArtifact)
+  - ${{ if eq(parameters.os, 'linux') }}:
+    - template: steps/sdk-java-linux-step.yml
+      parameters:
+        arch: ${{ parameters.arch }}
+        ep: ${{ parameters.ep }}
+        build_config: ${{ parameters.build_config }}
+        ort_version: ${{ parameters.ort_version }}
+        core_artifact: $(coreArtifact)
+
+  - ${{ if eq(parameters.os, 'win') }}:
+    - template: steps/sdk-java-win-step.yml
+      parameters:
+        arch: ${{ parameters.arch }}
+        ep: ${{ parameters.ep }}
+        build_config: ${{ parameters.build_config }}
+        ort_version: ${{ parameters.ort_version }}
+        core_artifact: $(coreArtifact)
+
+  - ${{ if eq(parameters.os, 'osx') }}:
+    - template: steps/sdk-java-macos-step.yml
+      parameters:
+        arch: ${{ parameters.arch }}
+        ep: ${{ parameters.ep }}
+        build_config: ${{ parameters.build_config }}
+        ort_version: ${{ parameters.ort_version }}
+        core_artifact: $(coreArtifact)
 
   - template: steps/compliant-and-cleanup-step.yml
