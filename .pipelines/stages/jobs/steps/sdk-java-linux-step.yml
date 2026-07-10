@@ -73,6 +73,27 @@ steps:
   env:
     SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
+# --- Resolve JAVA_HOME (arm64) ----------------------------------------------
+# On the arm64 pool CMake's FindJNI can't locate the JDK headers via the
+# update-alternatives /bin/java symlink, so it fails with "Could NOT find JNI".
+# Resolve the real JDK home from javac and export JAVA_HOME so FindJNI picks up
+# include/ (jni.h) + the JVM lib. (x64's default java is already a full JDK.)
+- bash: |
+    set -e
+    javac_bin=$(command -v javac || true)
+    if [ -z "$javac_bin" ]; then
+      echo "ERROR: javac not found — a full JDK (not just a JRE) is required on this agent"; exit 1
+    fi
+    java_home=$(dirname "$(dirname "$(readlink -f "$javac_bin")")")
+    echo "Resolved JAVA_HOME=$java_home"
+    if [ ! -f "$java_home/include/jni.h" ]; then
+      echo "ERROR: jni.h not found under $java_home/include (JDK dev headers missing)"; exit 1
+    fi
+    echo "##vso[task.setvariable variable=JAVA_HOME]$java_home"
+  displayName: 'Resolve JAVA_HOME (arm64)'
+  condition: eq('${{ parameters.arch }}', 'arm64')
+  workingDirectory: '$(Build.SourcesDirectory)'
+
 # --- Build the desktop jar incrementally against the prebuilt core ----------
 - bash: |
     set -e -x
