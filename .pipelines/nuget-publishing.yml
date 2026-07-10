@@ -49,8 +49,8 @@ parameters:
     - '12.8'
 
 # ---- NuGet versioning ------------------------------------------------------
-- name: nuget_version_type
-  displayName: 'NuGet version type'
+- name: version_type
+  displayName: 'Package version'
   type: string
   default: 'stable'
   values:
@@ -84,6 +84,11 @@ extends:
         enabled: true
         configFile: '$(Build.SourcesDirectory)\.config\tsaoptions.json'
     stages:
+    # ---- Version (compute the shared package version once) -----------------
+    - template: stages/version-stage.yml
+      parameters:
+        version_type: ${{ parameters.version_type }}
+
     # ---- Core (native) -----------------------------------------------------
     - template: stages/core-packaging-stage.yml
       parameters:
@@ -118,7 +123,6 @@ extends:
       parameters:
         ort_version_cpu: ${{ parameters.ort_version_cpu }}
         ort_version_cuda: ${{ parameters.ort_version_cuda }}
-        nuget_version_type: ${{ parameters.nuget_version_type }}
         enable_cpu: ${{ parameters.enable_cpu }}
         enable_cuda: ${{ parameters.enable_cuda }}
 
@@ -131,6 +135,5 @@ extends:
     # ---- SDK · .Foundry (built when both CPU and CUDA are enabled) ---------
     - template: stages/foundry-packaging-stage.yml
       parameters:
-        nuget_version_type: ${{ parameters.nuget_version_type }}
         enable_cpu: ${{ parameters.enable_cpu }}
         enable_cuda: ${{ parameters.enable_cuda }}

@@ -16,9 +16,6 @@
 # =============================================================================
 
 parameters:
-- name: nuget_version_type
-  type: string
-  default: 'stable'
 - name: enable_cpu
   type: boolean
   default: true
@@ -34,9 +31,12 @@ stages:
   - stage: sdk_foundry
     displayName: 'SDK · .Foundry'
     dependsOn:
+    - version
     - core_cpu
     - core_cuda
+    # Shared package version computed once by the 'version' stage.
+    variables:
+    - name: genai_version
+      value: $[ stageDependencies.version.set_version.outputs['setver.genai_version'] ]
     jobs:
     - template: jobs/foundry-packaging-job.yml
-      parameters:
-        nuget_version_type: ${{ parameters.nuget_version_type }}

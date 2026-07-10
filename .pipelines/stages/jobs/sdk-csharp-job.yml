@@ -25,9 +25,8 @@ parameters:
 - name: build_config
   type: string
   default: Release
-- name: nuget_version_type
-  type: string
-  default: 'stable'
+# genai_version is provided by the enclosing stage (from the 'version' stage
+# output) and inherited here as $(genai_version); see sdk-csharp-stage.yml.
 # RID enable toggles (which core archives to combine for this EP).
 - name: enable_win_x64
   type: boolean
@@ -107,9 +106,8 @@ jobs:
         artifactName: 'core-linux-arm64-${{ parameters.ep }}-archive'
         targetPath: '$(Build.BinariesDirectory)/artifact-downloads'
 
-  - template: steps/utils/set-genai-version.yml
-    parameters:
-      nuget_version_type: ${{ parameters.nuget_version_type }}
+  # genai_version is inherited from the enclosing stage (computed once by the
+  # 'version' stage), so no per-job version computation is needed here.
 
   # --- Feed isolation: NuGet restore → Lotus --------------------------------
   # Write a dedicated Lotus nuget.config (cleared, Lotus-only) into src/csharp so
