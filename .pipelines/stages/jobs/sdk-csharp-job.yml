@@ -192,11 +192,14 @@ jobs:
         } elseif ($a -like "*.tar.gz") {
           tar -xf $file -C $outputDir/$rid
         }
-        # CPACK_INCLUDE_TOPLEVEL_DIRECTORY places files under a top-level dir
-        # named after the archive stem; flatten its lib/ into <rid>/<config>.
-        $b = ($file.Basename -split '.tar')[0]
-        if (Test-Path $outputDir/$rid/$b/lib/) {
-          Move-Item $outputDir/$rid/$b/lib/* $outputDir/$rid/$(buildConfig) -Force
+        # CPACK_INCLUDE_TOPLEVEL_DIRECTORY nests everything under a single top-level
+        # dir (named from the CPack package name, which may differ from the archive
+        # filename after the version rename). Locate that dir by its lib/ child and
+        # flatten its lib/ into <rid>/<config>.
+        $top = Get-ChildItem -Path $outputDir/$rid -Directory |
+          Where-Object { Test-Path (Join-Path $_.FullName 'lib') } | Select-Object -First 1
+        if ($top) {
+          Move-Item $top.FullName/lib/* $outputDir/$rid/$(buildConfig) -Force
         }
         Get-ChildItem -Path $outputDir/$rid -Recurse | Select-Object FullName
       }

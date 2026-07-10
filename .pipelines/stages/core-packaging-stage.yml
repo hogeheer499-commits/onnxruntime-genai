@@ -42,8 +42,13 @@ stages:
 - ${{ if eq(parameters.enable_cpu, true) }}:
   - stage: core_cpu
     displayName: 'Core · CPU'
-    # Independent of Core · CUDA — override ADO's implicit "depend on previous stage".
-    dependsOn: []
+    # Depend on the version stage (shared package version) for the archive name.
+    # Independent of Core · CUDA (override ADO's implicit previous-stage depend).
+    dependsOn:
+    - version
+    variables:
+    - name: genai_version
+      value: $[ stageDependencies.version.set_version.outputs['setver.genai_version'] ]
     jobs:
 
     - template: jobs/core-build-job.yml
@@ -87,8 +92,13 @@ stages:
 - ${{ if eq(parameters.enable_cuda, true) }}:
   - stage: core_cuda
     displayName: 'Core · CUDA'
-    # Independent of Core · CPU — override ADO's implicit "depend on previous stage".
-    dependsOn: []
+    # Depend on the version stage (shared package version) for the archive name.
+    # Independent of Core · CPU (override ADO's implicit previous-stage depend).
+    dependsOn:
+    - version
+    variables:
+    - name: genai_version
+      value: $[ stageDependencies.version.set_version.outputs['setver.genai_version'] ]
     jobs:
 
     - template: jobs/core-build-job.yml
